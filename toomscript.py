@@ -1,54 +1,37 @@
 import os
 import sys
 from itertools import combinations
-import wave
+from scipy.io import wavfile
+import numpy as np
 
 def make_mono(wav_path):
     """Convert a wav file to mono by averaging its channels."""
-    with wave.open(wav_path, 'rb') as wav_file:
-        params = wav_file.getparams()
-        sample_width = wav_file.getsampwidth()
-        frame_rate = wav_file.getframerate()
-        n_frames = wav_file.getnframes()
-        n_channels = wav_file.getnchannels()
-        frames = wav_file.readframes(n_frames)
+    sample_rate, data = wavfile.read(wav_path)
     
-    # If already mono, return the frames as-is
-    if n_channels == 1:
-        return frames, sample_width, frame_rate
-    
-    # Convert to mono by averaging channels
-    mono_frames = bytearray()
-    for i in range(0, len(frames), sample_width * n_channels):
-        samples = [
-            int.from_bytes(frames[i + j * sample_width: i + (j + 1) * sample_width], byteorder='little', signed=True)
-            for j in range(n_channels)
-        ]
-        mono_sample = sum(samples) // n_channels
-        mono_frames.extend(mono_sample.to_bytes(sample_width, byteorder='little', signed=True))
-    
-    return bytes(mono_frames), sample_width, frame_rate
+    # Check if the file is already mono
+    if len(data.shape) == 1:
+        return data, sample_rate
 
-def merge_to_stereo(wav1_mono, wav2_mono, sample_width):
+    # If stereo, average the channels to make mono
+    mono_data = data.mean(axis=1).astype(data.dtype)
+    return mono_data, sample_rate
+
+def merge_to_stereo(wav1_mono, wav2_mono):
     """Interleave two mono audio frames to create stereo audio."""
-    stereo_frames = bytearray()
-    for i in range(0, len(wav1_mono), sample_width):
-        stereo_frames.extend(wav1_mono[i:i + sample_width])  # Left channel
-        stereo_frames.extend(wav2_mono[i:i + sample_width])  # Right channel
-    return bytes(stereo_frames)
+    return np.column_stack((wav1_mono, wav2_mono))
 
 def make_mono_and_merge(wav1_path, wav2_path, output_folder):
     # Convert both audio files to mono
-    wav1_mono, sample_width1, frame_rate1 = make_mono(wav1_path)
-    wav2_mono, sample_width2, frame_rate2 = make_mono(wav2_path)
+    wav1_mono, sample_rate1 = make_mono(wav1_path)
+    wav2_mono, sample_rate2 = make_mono(wav2_path)
 
     # Ensure compatibility
-    if sample_width1 != sample_width2 or frame_rate1 != frame_rate2:
+    if sample_rate1 != sample_rate2 or len(wav1_mono) != len(wav2_mono):
         print(f"Incompatible files: {wav1_path} and {wav2_path}. Skipping.")
         return
 
     # Interleave the two mono files into a stereo file
-    stereo_frames = merge_to_stereo(wav1_mono, wav2_mono, sample_width1)
+    stereo_data = merge_to_stereo(wav1_mono, wav2_mono)
 
     # Create output filename based on input filenames
     base1 = os.path.splitext(os.path.basename(wav1_path))[0]
@@ -57,12 +40,7 @@ def make_mono_and_merge(wav1_path, wav2_path, output_folder):
     output_path = os.path.join(output_folder, output_filename)
 
     # Write the output file
-    with wave.open(output_path, 'wb') as output:
-        output.setnchannels(2)  # Stereo
-        output.setsampwidth(sample_width1)
-        output.setframerate(frame_rate1)
-        output.writeframes(stereo_frames)
-    
+    wavfile.write(output_path, sample_rate1, stereo_data)
     print(f"Created {output_path}")
 
 def main(source_folder, target_folder):
