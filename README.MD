@@ -51,7 +51,7 @@ If you don’t have Python 3 installed or need to set up a few additional depend
 3. **Run the Script** using the following command format:
 
    ```bash
-   python3 script.py <source_folder> <target_folder>
+   python3 toomscript.py <source_folder> <target_folder>
    ```
 
    - Replace `<source_folder>` with the path to the folder containing the `.wav` files you want to merge.
@@ -60,7 +60,7 @@ If you don’t have Python 3 installed or need to set up a few additional depend
    ### Example
 
    ```bash
-   python3 script.py ./source_wavs ./merged_wavs
+   python3 toomscript.py ./source_wavs ./merged_wavs
    ```
 
    This command will take all pairs of `.wav` files in the `source_wavs` folder, combine each pair into stereo, and save them in the `merged_wavs` folder.
