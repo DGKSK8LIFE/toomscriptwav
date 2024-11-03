@@ -31,10 +31,11 @@ def pad_to_match_length(wav1_mono, wav2_mono):
     
     return wav1_mono, wav2_mono
 
-def merge_to_stereo(wav1_mono, wav2_mono):
-    """Merge two mono audio arrays into a stereo array."""
+def merge_to_mono(wav1_mono, wav2_mono):
+    """Merge two mono audio arrays into a single mono array by averaging them."""
     wav1_mono, wav2_mono = pad_to_match_length(wav1_mono, wav2_mono)
-    return np.column_stack((wav1_mono, wav2_mono))
+    # Average the two mono audio signals to create a single mono output
+    return ((wav1_mono + wav2_mono) / 2).astype(wav1_mono.dtype)
 
 def make_mono_and_merge(wav1_path, wav2_path, output_folder):
     # Convert both audio files to mono
@@ -45,17 +46,17 @@ def make_mono_and_merge(wav1_path, wav2_path, output_folder):
         print(f"Skipping merge due to invalid files: {wav1_path}, {wav2_path}")
         return
 
-    # Interleave the two mono files into a stereo file
-    stereo_data = merge_to_stereo(wav1_mono, wav2_mono)
+    # Interleave the two mono files into a single mono file
+    mono_data = merge_to_mono(wav1_mono, wav2_mono)
 
     # Create output filename based on input filenames
     base1 = os.path.splitext(os.path.basename(wav1_path))[0]
     base2 = os.path.splitext(os.path.basename(wav2_path))[0]
-    output_filename = f"{base1}_{base2}_merged.wav"
+    output_filename = f"{base1}_{base2}_merged_mono.wav"
     output_path = os.path.join(output_folder, output_filename)
 
     # Write the output file
-    wavfile.write(output_path, sample_rate1, stereo_data)
+    wavfile.write(output_path, sample_rate1, mono_data)
     print(f"Created {output_path}")
 
 def main(source_folder, target_folder):
