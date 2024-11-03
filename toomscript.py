@@ -6,8 +6,12 @@ import numpy as np
 
 def make_mono(wav_path):
     """Convert a wav file to mono by averaging its channels."""
-    sample_rate, data = wavfile.read(wav_path)
-    
+    try:
+        sample_rate, data = wavfile.read(wav_path)
+    except ValueError as e:
+        print(f"Error reading {wav_path}: {e}")
+        return None, None  # Return None for invalid files
+
     # Check if the file is already mono
     if len(data.shape) == 1:
         return data, sample_rate
@@ -16,8 +20,20 @@ def make_mono(wav_path):
     mono_data = data.mean(axis=1).astype(data.dtype)
     return mono_data, sample_rate
 
+def pad_to_match_length(wav1_mono, wav2_mono):
+    """Pad the shorter array with zeros to match the length of the longer array."""
+    max_len = max(len(wav1_mono), len(wav2_mono))
+    
+    if len(wav1_mono) < max_len:
+        wav1_mono = np.pad(wav1_mono, (0, max_len - len(wav1_mono)), 'constant')
+    if len(wav2_mono) < max_len:
+        wav2_mono = np.pad(wav2_mono, (0, max_len - len(wav2_mono)), 'constant')
+    
+    return wav1_mono, wav2_mono
+
 def merge_to_stereo(wav1_mono, wav2_mono):
-    """Interleave two mono audio frames to create stereo audio."""
+    """Merge two mono audio arrays into a stereo array."""
+    wav1_mono, wav2_mono = pad_to_match_length(wav1_mono, wav2_mono)
     return np.column_stack((wav1_mono, wav2_mono))
 
 def make_mono_and_merge(wav1_path, wav2_path, output_folder):
@@ -25,9 +41,8 @@ def make_mono_and_merge(wav1_path, wav2_path, output_folder):
     wav1_mono, sample_rate1 = make_mono(wav1_path)
     wav2_mono, sample_rate2 = make_mono(wav2_path)
 
-    # Ensure compatibility
-    if sample_rate1 != sample_rate2 or len(wav1_mono) != len(wav2_mono):
-        print(f"Incompatible files: {wav1_path} and {wav2_path}. Skipping.")
+    if wav1_mono is None or wav2_mono is None:
+        print(f"Skipping merge due to invalid files: {wav1_path}, {wav2_path}")
         return
 
     # Interleave the two mono files into a stereo file
@@ -68,4 +83,3 @@ if __name__ == "__main__":
         source_folder = sys.argv[1]
         target_folder = sys.argv[2]
         main(source_folder, target_folder)
-
